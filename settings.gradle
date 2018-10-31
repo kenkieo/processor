@@ -1,0 +1,7 @@
+//include ':app'                  // 主工程
+//include ':library'            // 库
+//include ':round_image'          // 圆角图片
+include ':ken_android'                  // 注解
+include ':ken_annotations'              // 注解
+include ':ken_processor'                // 生成java代码
+include ':ken_processor_test'           // 生成java代码

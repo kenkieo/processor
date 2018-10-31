@@ -1,0 +1,30 @@
+
+buildscript {
+    def support_version = "26.0.2"
+    ext.kotlin_version = '+'
+    ext.butterknife_version='8.6.0'
+    repositories {
+        maven {url 'http://maven.aliyun.com/nexus/content/groups/public/'}
+        jcenter()
+        google()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.0.0'
+        classpath 'org.greenrobot:greendao-gradle-plugin:3.2.0'
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
+        classpath "com.jakewharton:butterknife-gradle-plugin:$butterknife_version"
+        classpath 'com.chenenyu:img-optimizer:+'
+    }
+}
+
+allprojects {
+    repositories {
+        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/'}
+        jcenter()
+        google()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
