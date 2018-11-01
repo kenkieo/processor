@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/ken_android/ken_android.iml" filepath="$PROJECT_DIR$/ken_android/ken_android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ken_annotations/ken_annotations.iml" filepath="$PROJECT_DIR$/ken_annotations/ken_annotations.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ken_processor/ken_processor.iml" filepath="$PROJECT_DIR$/ken_processor/ken_processor.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ken_processor_test/ken_processor_test.iml" filepath="$PROJECT_DIR$/ken_processor_test/ken_processor_test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/processor.iml" filepath="$PROJECT_DIR$/processor.iml" />
+    </modules>
+  </component>
+</project>

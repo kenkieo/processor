@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
 
 import ken.android.processor.KenProcessorUtils;
 import ken.android.view.FindView;
@@ -26,5 +27,7 @@ public class TestActivity extends Activity {
     }
     
     @ViewClick(R.id.text)
-    void gotoClick(View v) {}
+    void gotoClick(View v) {
+	   Toast.makeText(this, "烤漆", Toast.LENGTH_LONG).show();
+    }
 }

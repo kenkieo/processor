@@ -59,7 +59,7 @@ public class ViewProcessor extends BaseProcessor {
 		  builder.append(String.format("v.findViewById(%s).setOnClickListener(new android.view.View.OnClickListener() {\n" +
 				"@Override\n" +
 				"public void onClick(android.view.View view) {\n" +
-				"o.%s(%s);\n}\n}\n)", viewClick.value(), methodName, paramsTypeString));
+				"o.%s(%s);\n}\n}\n);", viewClick.value(), methodName, paramsTypeString));
 		  onClickMethodList.add(onClickMethodList.size() - 1, builder.toString());
 		  mProcessorUtils.attachView(viewInfo);
 	   }
@@ -109,7 +109,7 @@ public class ViewProcessor extends BaseProcessor {
 	   List<String> list = map.get(viewInfo.classPath);
 	   if (list == null) {
 		  list = new ArrayList<>();
-		  list.add(String.format("private void %s(%s o, View v){\n", methodName, viewInfo.className));
+		  list.add(String.format("private void %s(final %s o, View v){\n", methodName, viewInfo.className));
 		  list.add("}\n");
 		  map.put(viewInfo.classPath, list);
 	   }
