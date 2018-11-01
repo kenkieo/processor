@@ -1,7 +1,6 @@
 package com.test.processor;
 
 import android.util.Log;
-import android.view.View;
 
 
 public class LoggerUtils {
@@ -36,12 +35,6 @@ public class LoggerUtils {
 	   if (LOG_SWITCH) {
 		  StringBuffer stringBuffer = new StringBuffer();
 		  for (Object o : objects) {
-			 if (o instanceof View) {
-				View v = (View) o;
-				o = o.getClass().getSimpleName();
-			 } else if (o instanceof Class) {
-				o = o.getClass().getSimpleName();
-			 }
 			 stringBuffer.append(String.valueOf(o)).append(" , ");
 		  }
 		  Log.i(TAG, stringBuffer.toString());
@@ -61,7 +54,7 @@ public class LoggerUtils {
 //		  }
 //	   }
 //    }
-//
+    
     public static void d(Object text) {
 	   if (LOG_SWITCH) {
 		  d(TAG, text);

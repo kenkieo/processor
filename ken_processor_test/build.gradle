@@ -20,7 +20,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation project(':ken_android')// 注解库
+//    implementation project(':ken_android')// 注解库
     provided project(':ken_annotations')
     annotationProcessor project(':ken_processor')                                                   // 注解库
 }

@@ -2,9 +2,8 @@ package ken.android.processor;
 
 import com.google.auto.service.AutoService;
 
-import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -15,7 +14,6 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import ken.android.json.JSONClass;
@@ -25,22 +23,14 @@ import ken.android.view.FindView;
 import ken.android.view.ViewAnnotation;
 import ken.android.view.ViewClick;
 
-@SupportedAnnotationTypes({"ken.android.json.JSONClass", "ken.android.view.FindView", "ken.android.view.ViewAninotation",})
+@SupportedAnnotationTypes({"ken.android.json.JSONClass", "ken.android.view.FindView", "ken.android.view.ViewAninotation"})
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
 @AutoService(Processor.class)
 public class KenProcessor extends AbstractProcessor {
     
-    private Messager mMessager;
-    private List<String> mKenProcessorUtilsString = new ArrayList<>();
+    private Messager      mMessager;
     private ViewProcessor mViewProcessor;
     private JsonProcessor mJsonProcessor;
-    
-    public KenProcessor() {
-	   super();
-	   mViewProcessor = new ViewProcessor().setProcessorUtilsListString(mKenProcessorUtilsString);
-	   mViewProcessor.setProcessingEnvironment(processingEnv);
-	   mJsonProcessor = new JsonProcessor();
-    }
     
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -51,25 +41,8 @@ public class KenProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 	   System.out.println("process >>>>>>>>>> ");
-	   if (mKenProcessorUtilsString.isEmpty()) {
-		  mKenProcessorUtilsString.add("package ken.android.processor;");
-		  mKenProcessorUtilsString.add("import android.app.Application;");
-		  mKenProcessorUtilsString.add("public class KenProcessorUtils {");
-		  mKenProcessorUtilsString.add("private static KenProcessorUtils mIns = null;");
-		  mKenProcessorUtilsString.add("private KenProcessorUtils() {}");
-		  mKenProcessorUtilsString.add("    public static KenProcessorUtils getIns() {");
-		  mKenProcessorUtilsString.add("synchronized (KenProcessorUtils.class) {");
-		  mKenProcessorUtilsString.add(" if (mIns == null) { mIns = new KenProcessorUtils(); }");
-		  mKenProcessorUtilsString.add("}");
-		  mKenProcessorUtilsString.add("return mIns;");
-		  mKenProcessorUtilsString.add("}");
-		  mKenProcessorUtilsString.add("public void initApplication(Application application) {}");
-		  mKenProcessorUtilsString.add("public void bind(Object o) {");
-		  mKenProcessorUtilsString.add("}");
-	   }
-	   ViewProcessor.getConstructor()
-	   for (Element element : roundEnv.getElementsAnnotatedWith(FindView.class)) {
-		  mViewProcessor.process(element);
+	   if (mViewProcessor == null) {
+		  mViewProcessor = ViewProcessor.attach(roundEnv, processingEnv);
 	   }
 	   return true;
     }
@@ -89,25 +62,52 @@ public class KenProcessor extends AbstractProcessor {
 	   return super.getSupportedSourceVersion();
     }
     
-    public static String getPackage(String className) {
-	   int start = className.lastIndexOf(".");
+    public static String[] getPackageInfo(String className) {
+	   String[] strs  = new String[]{"", className};
+	   int      start = className.lastIndexOf(".");
 	   if (start >= 1) {
-		  return className.substring(0, start);
+		  strs[0] = className.substring(0, start);
+		  strs[1] = className.substring(start + 1);
 	   }
-	   return "";
+	   return strs;
     }
     
     public static String getPackageString(String packageName) {
-	   return String.format("package %s;", packageName);
+	   return String.format("package %s;\n", packageName);
     }
     
     public static String getImportString(String classString) {
-	   return String.format("import %s;", classString);
+	   return String.format("import %s;\n", classString);
     }
     
-    public static String getClassName(String className) {
-	   return String.format("public class %s_BindProcess extends %s {", className, className);
+    public static String getClassName(String resourceName) {
+	   return String.format("public class %s {\n", resourceName);
     }
     
+    public static String join(CharSequence delimiter, Object[] tokens) {
+	   StringBuilder sb        = new StringBuilder();
+	   boolean       firstTime = true;
+	   for (Object token : tokens) {
+		  if (firstTime) {
+			 firstTime = false;
+		  } else {
+			 sb.append(delimiter);
+		  }
+		  sb.append(token);
+	   }
+	   return sb.toString();
+    }
     
+    public static String join(CharSequence delimiter, Iterable tokens) {
+	   StringBuilder sb = new StringBuilder();
+	   Iterator<?>   it = tokens.iterator();
+	   if (it.hasNext()) {
+		  sb.append(it.next());
+		  while (it.hasNext()) {
+			 sb.append(delimiter);
+			 sb.append(it.next());
+		  }
+	   }
+	   return sb.toString();
+    }
 }

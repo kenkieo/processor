@@ -13,15 +13,15 @@ import ken.android.view.ViewClick;
 public class TestActivity extends Activity {
     
     @FindView(R.id.text)
-    View view;
+    View mTextView;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 	   LoggerUtils.i(this, "onCreate", 1);
 	   super.onCreate(savedInstanceState);
 	   LoggerUtils.i(this, "onCreate", 2);
-	   KenProcessorUtils.getIns().bind(this);
 	   setContentView(R.layout.text);
+	   KenProcessorUtils.getIns().bind(this, getWindow().getDecorView());
 	   startActivity(new Intent(this, Test2Activity.class));
     }
     

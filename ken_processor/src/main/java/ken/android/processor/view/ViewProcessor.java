@@ -1,99 +1,154 @@
 package ken.android.processor.view;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.Element;
+import javax.tools.JavaFileObject;
 
 import ken.android.processor.BaseProcessor;
 import ken.android.processor.KenProcessor;
-import ken.android.processor.PrintLog;
+import ken.android.view.FindView;
+import ken.android.view.ViewClick;
 
 public class ViewProcessor extends BaseProcessor {
     
-    private HashMap<String, List<String>> mItemMap                  = new HashMap<>();
-    private HashMap<String, List<String>> mItemFindViewMap          = new HashMap<>();
-    private HashMap<String, List<String>> mItemOnClickViewMap       = new HashMap<>();
-    private List<String>                  mProcessorUtilsListString = null;
+    private static final String RESOURCE_CLASS_NAME = "%s_BindViewProcess";
+    private static final String METHOD_FIND_VIEW    = "findView";
+    private static final String METHOD_ON_CLICK     = "onClickView";
+    private static final String VIEW_CLASS          = "android.view.View";
     
-    public void process(Element element) {
-	   String       className   = element.getSimpleName().toString();
-	   Element      clazz       = element.getEnclosingElement();
-	   String       clazzString = clazz.toString();
-	   List<String> stringList  = mItemMap.get(clazzString);
-	   String       packageName = KenProcessor.getPackage(clazzString);
+    private HashMap<String, ViewInfo>     mViewInfoMap              = new HashMap<>();
+    private HashMap<String, List<String>> mItemMap                  = new HashMap<>();
+    private HashMap<String, List<String>> mItemFindViewFieldMap     = new HashMap<>();
+    private HashMap<String, List<String>> mItemOnClickViewMethodMap = new HashMap<>();
+    
+    private ViewProcessorUtils mProcessorUtils = new ViewProcessorUtils();
+    
+    protected ViewProcessor() {
+    }
+    
+    public void process(RoundEnvironment roundEnv, ProcessingEnvironment processingEnv) {
+	   for (Element element : roundEnv.getElementsAnnotatedWith(FindView.class)) {
+		  String   fieldName = element.getSimpleName().toString();
+		  ViewInfo viewInfo  = getViewInfo(element);
+		  buildItemClassList(mItemMap, viewInfo);
+		  List<String> findViewMethodList = buildItemList(mItemFindViewFieldMap, viewInfo, METHOD_FIND_VIEW);
+		  FindView     findView           = element.getAnnotation(FindView.class);
+		  findViewMethodList.add(1, String.format("o.%s = v.findViewById(%s);\n", fieldName, findView.value()));
+		  mProcessorUtils.attachView(viewInfo);
+	   }
+	   for (Element element : roundEnv.getElementsAnnotatedWith(ViewClick.class)) {
+		  String   methodName = element.getSimpleName().toString();
+		  ViewInfo viewInfo   = getViewInfo(element);
+		  buildItemClassList(mItemMap, viewInfo);
+		  List<String>                             onClickMethodList = buildItemList(mItemOnClickViewMethodMap, viewInfo, METHOD_ON_CLICK);
+		  ViewClick                                viewClick         = element.getAnnotation(ViewClick.class);
+		  com.sun.tools.javac.code.Type.MethodType paramsType        = (com.sun.tools.javac.code.Type.MethodType) element.asType();
+		  String                                   paramsTypeString  = "";
+		  if (!paramsType.argtypes.isEmpty()) {
+			 paramsTypeString = String.format("(%s)view", paramsType.argtypes.get(0));
+		  }
+		  StringBuilder builder = new StringBuilder();
+		  builder.append(String.format("v.findViewById(%s).setOnClickListener(new android.view.View.OnClickListener() {\n" +
+				"@Override\n" +
+				"public void onClick(android.view.View view) {\n" +
+				"o.%s(%s);\n}\n}\n)", viewClick.value(), methodName, paramsTypeString));
+		  onClickMethodList.add(onClickMethodList.size() - 1, builder.toString());
+		  mProcessorUtils.attachView(viewInfo);
+	   }
+	   Set<String> keys = mItemMap.keySet();
+	   for (String key : keys) {
+		  List<String> stringList         = mItemMap.get(key);
+		  ViewInfo     viewInfo           = getViewInfo(key);
+		  List<String> findViewMethodList = buildItemList(mItemFindViewFieldMap, viewInfo, METHOD_FIND_VIEW);
+		  if (findViewMethodList != null) {
+			 stringList.addAll(stringList.size() - 1, findViewMethodList);
+		  }
+		  List<String> onClickMethodList = buildItemList(mItemOnClickViewMethodMap, viewInfo, METHOD_ON_CLICK);
+		  if (onClickMethodList != null) {
+			 stringList.addAll(stringList.size() - 1, onClickMethodList);
+		  }
+		  try { // write the file
+			 JavaFileObject source = processingEnv.getFiler().createSourceFile(String.format("%s", viewInfo.resourcePath));
+			 Writer         writer = source.openWriter();
+			 writer.write(KenProcessor.join("\n", stringList));
+			 writer.flush();
+			 writer.close();
+		  } catch (IOException e) {
+			 // Note: calling e.printStackTrace() will print IO errors
+			 // that occur from the file already existing after its first run, this is normal
+		  }
+	   }
+	   mProcessorUtils.build(processingEnv);
+	   
+    }
+    
+    private List<String> buildItemClassList(HashMap<String, List<String>> map, ViewInfo viewInfo) {
+	   List<String> stringList = map.get(viewInfo.classPath);
 	   if (stringList == null) {
 		  stringList = new ArrayList<>();
-		  stringList.add(KenProcessor.getPackageString(packageName));
-		  stringList.add(KenProcessor.getImportString(clazzString));
-		  stringList.add(KenProcessor.getClassName(className));
-		  stringList.add(getConstructor(className));
+		  stringList.add(KenProcessor.getPackageString(viewInfo.packageName));
+		  stringList.add(KenProcessor.getImportString(viewInfo.classPath));
+		  stringList.add(KenProcessor.getImportString(VIEW_CLASS));
+		  stringList.add(KenProcessor.getClassName(viewInfo.resourceName));
+		  stringList.add(getConstructor(viewInfo.resourceName, viewInfo.className));
 		  stringList.add("}");
+		  map.put(viewInfo.classPath, stringList);
 	   }
-//	   Elements.getPackageOf(Element).asType().toString();
-//	   for (Element enclosedElement : element.getEnclosedElements()) {
-//		  if (enclosedElement.getKind() == ElementKind.FIELD) {
-//			 Set<Modifier> modifiers = enclosedElement.getModifiers();
-//			 StringBuilder builder   = new StringBuilder();
-//			 if (modifiers.contains(Modifier.PRIVATE)) {
-//				builder.append("private").append(" ");
-//			 } else if (modifiers.contains(Modifier.PROTECTED)) {
-//				builder.append("protected").append(" ");
-//			 } else if (modifiers.contains(Modifier.PUBLIC)) {
-//				builder.append("public").append(" ");
-//			 }
-//			 if (modifiers.contains(Modifier.STATIC)) {
-//				builder.append("static").append(" ");
-//			 }
-//			 if (modifiers.contains(Modifier.FINAL)) {
-//				builder.append("final").append(" ");
-//			 }
-//			 builder.append(enclosedElement.asType()).append(" ");
-//			 builder.append(enclosedElement.getSimpleName()).append(" ");
-//			 PrintLog.print(builder);
-//		  }
-//	   }
-	   PrintLog.print();
-	   PrintLog.print();
-//	   StringBuilder builder = new StringBuilder()
-//			 .append("package com.chiclaim.processor.generated;\n\n")
-//			 .append("public class GeneratedClass {\n\n") // open class
-//			 .append("\tpublic String getMessage() {\n") // open method
-//			 .append("\t\treturn \"");
-//
-//
-//	   // for each javax.lang.model.element.Element annotated with the CustomAnnotation
-//	   String objectType = element.getSimpleName().toString();
-//	   // this is appending to the return statement
-//	   builder.append(objectType).append(" says hello!\\n");
-//
-//	   builder.append("\";\n") // end return
-//			 .append("\t}\n") // close method
-//			 .append("}\n"); // close class
-//
-//	   try { // write the file
-//		  JavaFileObject source = processingEnv.getFiler().createSourceFile("com.chiclaim.processor.generated.GeneratedClass");
-//		  Writer         writer = source.openWriter();
-//		  writer.write(builder.toString());
-//		  writer.flush();
-//		  writer.close();
-//	   } catch (IOException e) {
-//		  // Note: calling e.printStackTrace() will print IO errors
-//		  // that occur from the file already existing after its first run, this is normal
-//	   }
+	   return stringList;
     }
     
-    public ViewProcessor setProcessorUtilsListString(List<String> processorUtilsListString) {
-	   mProcessorUtilsListString = processorUtilsListString;
-	   return this;
+    private List<String> buildItemList(HashMap<String, List<String>> map, ViewInfo viewInfo, String methodName) {
+	   List<String> list = map.get(viewInfo.classPath);
+	   if (list == null) {
+		  list = new ArrayList<>();
+		  list.add(String.format("private void %s(%s o, View v){\n", methodName, viewInfo.className));
+		  list.add("}\n");
+		  map.put(viewInfo.classPath, list);
+	   }
+	   return list;
+    }
+    
+    public static String getConstructor(String resourceName, String className) {
+	   return String.format("public %s(final %s o,final View v){\n" +
+			 "%s(o, v);\n" +
+			 "%s(o, v);\n" +
+			 "}\n", resourceName, className, METHOD_FIND_VIEW, METHOD_ON_CLICK);
+    }
+    
+    public ViewInfo getViewInfo(Element element) {
+	   Element clazz       = element.getEnclosingElement();
+	   String  clazzString = clazz.toString();
+	   return getViewInfo(clazzString);
+    }
+    
+    public ViewInfo getViewInfo(String clazzString) {
+	   ViewInfo viewInfo = mViewInfoMap.get(clazzString);
+	   if (viewInfo == null) {
+		  viewInfo = new ViewInfo();
+		  String[] packageInfo = KenProcessor.getPackageInfo(clazzString);
+		  viewInfo.packageName = packageInfo[0];
+		  viewInfo.className = packageInfo[1];
+		  viewInfo.classPath = clazzString;
+		  viewInfo.resourceName = String.format(RESOURCE_CLASS_NAME, viewInfo.className);
+		  viewInfo.resourcePath = String.format(RESOURCE_CLASS_NAME, viewInfo.classPath);
+		  mViewInfoMap.put(clazzString, viewInfo);
+	   }
+	   return viewInfo;
+    }
+    
+    public static ViewProcessor attach(RoundEnvironment roundEnv, ProcessingEnvironment processingEnv) {
+	   ViewProcessor viewProcessor = new ViewProcessor();
+	   viewProcessor.process(roundEnv, processingEnv);
+	   return viewProcessor;
     }
     
     
-    public static String getConstructor(String className) {
-	   return String.format("public class %s_BindProcess(%s o){" +
-			 "findView(o)" +
-			 "onClickView(o)" +
-			 "}", className, className);
-    }
 }
